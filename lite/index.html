@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Monochrome LITE</title>
+    <meta name="theme-color" content="#000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            height: 100%; 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000; 
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        /* Search Bar */
+        .search-bar {
+            padding: 12px;
+            background: #111;
+            border-bottom: 1px solid #222;
+        }
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #222;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        .search-input::placeholder { color: #666; }
+        
+        /* Content Area */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .message {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+        
+        /* Track List */
+        .track {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a1a1a;
+            cursor: pointer;
+        }
+        .track:active { background: #1a1a1a; }
+        .track.playing { background: #1a1a1a; }
+        
+        .track-cover {
+            width: 48px;
+            height: 48px;
+            background: #333;
+            border-radius: 4px;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+        
+        .track-info { flex: 1; min-width: 0; }
+        .track-title {
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .track-artist {
+            font-size: 13px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .track-duration {
+            font-size: 12px;
+            color: #666;
+            margin-left: 8px;
+        }
+        
+        /* Now Playing Bar */
+        .now-playing {
+            background: #111;
+            border-top: 1px solid #222;
+            padding: 8px 12px;
+        }
+        
+        .np-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .np-cover {
+            width: 40px;
+            height: 40px;
+            background: #333;
+            border-radius: 4px;
+            margin-right: 10px;
+            object-fit: cover;
+        }
+        .np-text { flex: 1; min-width: 0; }
+        .np-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .np-artist {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .progress-time {
+            font-size: 11px;
+            color: #666;
+            min-width: 35px;
+        }
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #fff;
+            border-radius: 2px;
+            width: 0%;
+        }
+        
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+        }
+        .ctrl-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            opacity: 0.8;
+        }
+        .ctrl-btn:active { opacity: 0.5; }
+        .ctrl-btn.play { font-size: 28px; opacity: 1; }
+        
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #333;
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Hidden */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search tracks, artists..." autocomplete="off">
+        </div>
+        
+        <div class="content" id="content">
+            <div class="message">🎵 Monochrome LITE<br><small>Search for music to get started</small></div>
+        </div>
+        
+        <div class="now-playing" id="nowPlaying">
+            <div class="np-info">
+                <img class="np-cover" id="npCover" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>" alt="">
+                <div class="np-text">
+                    <div class="np-title" id="npTitle">No track playing</div>
+                    <div class="np-artist" id="npArtist">-</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <span class="progress-time" id="currentTime">0:00</span>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span class="progress-time" id="totalTime">0:00</span>
+            </div>
+            <div class="controls">
+                <button class="ctrl-btn" id="prevBtn">⏮</button>
+                <button class="ctrl-btn play" id="playBtn">▶</button>
+                <button class="ctrl-btn" id="nextBtn">⏭</button>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="audio" crossorigin="anonymous"></audio>
+    
+    <script>
+    (function() {
+        'use strict';
+        
+        // API Instances
+        const API_INSTANCES = [
+            'https://api.monochrome.tf/',
+            'https://wolf.qqdl.site/',
+            'https://tidal-api.binimum.org/'
+        ];
+        const STREAMING_INSTANCES = [
+            'https://api.monochrome.tf/',
+            'https://wolf.qqdl.site/',
+            'https://tidal-api.binimum.org/'
+        ];
+        
+        // State
+        let queue = [];
+        let currentIndex = -1;
+        let isPlaying = false;
+        
+        // Elements
+        const audio = document.getElementById('audio');
+        const searchInput = document.getElementById('searchInput');
+        const content = document.getElementById('content');
+        const npTitle = document.getElementById('npTitle');
+        const npArtist = document.getElementById('npArtist');
+        const npCover = document.getElementById('npCover');
+        const playBtn = document.getElementById('playBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        
+        // API Functions
+        async function fetchWithRetry(path, instances, signal) {
+            for (const base of instances) {
+                try {
+                    const url = base.endsWith('/') ? base + path.slice(1) : base + path;
+                    const res = await fetch(url, { signal });
+                    if (res.ok) return res;
+                } catch (e) {
+                    if (e.name === 'AbortError') throw e;
+                    continue;
+                }
+            }
+            throw new Error('All instances failed');
+        }
+        
+        async function searchTracks(query) {
+            const res = await fetchWithRetry(`/search/?s=${encodeURIComponent(query)}`, API_INSTANCES);
+            const json = await res.json();
+            const data = json.data || json;
+            return data.items || [];
+        }
+        
+        async function getStreamUrl(trackId) {
+            const res = await fetchWithRetry(`/track/?id=${trackId}&quality=LOSSLESS`, STREAMING_INSTANCES);
+            const json = await res.json();
+            const data = json.data || json;
+            
+            if (data.manifest) {
+                try {
+                    const decoded = atob(data.manifest);
+                    const parsed = JSON.parse(decoded);
+                    if (parsed.urls && parsed.urls[0]) {
+                        return parsed.urls[0];
+                    }
+                } catch (e) {
+                    console.error('Manifest decode failed:', e);
+                }
+            }
+            return null;
+        }
+        
+        function getCoverUrl(coverId, size = 160) {
+            if (!coverId) return '';
+            return `https://resources.tidal.com/images/${coverId.replace(/-/g, '/')}/${size}x${size}.jpg`;
+        }
+        
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+        
+        // Search
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            if (query.length < 2) return;
+            
+            searchTimeout = setTimeout(async () => {
+                content.innerHTML = '<div class="message"><span class="loading"></span></div>';
+                try {
+                    const tracks = await searchTracks(query);
+                    renderTracks(tracks);
+                } catch (e) {
+                    content.innerHTML = '<div class="message">Search failed. Try again.</div>';
+                }
+            }, 300);
+        });
+        
+        function renderTracks(tracks) {
+            if (!tracks.length) {
+                content.innerHTML = '<div class="message">No tracks found</div>';
+                return;
+            }
+            
+            queue = tracks;
+            content.innerHTML = tracks.map((track, i) => {
+                const artist = track.artist?.name || track.artists?.[0]?.name || 'Unknown';
+                const cover = getCoverUrl(track.album?.cover, 160);
+                const duration = formatTime(track.duration);
+                return `
+                    <div class="track ${i === currentIndex ? 'playing' : ''}" data-index="${i}">
+                        <img class="track-cover" src="${cover}" alt="" loading="lazy" onerror="this.style.display='none'">
+                        <div class="track-info">
+                            <div class="track-title">${track.title}</div>
+                            <div class="track-artist">${artist}</div>
+                        </div>
+                        <span class="track-duration">${duration}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Track Click
+        content.addEventListener('click', (e) => {
+            const trackEl = e.target.closest('.track');
+            if (trackEl) {
+                const index = parseInt(trackEl.dataset.index);
+                playTrack(index);
+            }
+        });
+        
+        // Playback
+        async function playTrack(index) {
+            if (index < 0 || index >= queue.length) return;
+            
+            currentIndex = index;
+            const track = queue[index];
+            const artist = track.artist?.name || track.artists?.[0]?.name || 'Unknown';
+            const cover = getCoverUrl(track.album?.cover, 160);
+            
+            // Update UI
+            npTitle.textContent = track.title;
+            npArtist.textContent = artist;
+            npCover.src = cover;
+            document.title = `${track.title} - ${artist}`;
+            
+            // Highlight current track
+            document.querySelectorAll('.track').forEach((el, i) => {
+                el.classList.toggle('playing', i === index);
+            });
+            
+            // Get stream URL and play
+            playBtn.innerHTML = '<span class="loading"></span>';
+            try {
+                const url = await getStreamUrl(track.id);
+                if (url) {
+                    audio.src = url;
+                    audio.play();
+                } else {
+                    throw new Error('No stream URL');
+                }
+            } catch (e) {
+                console.error('Playback failed:', e);
+                playBtn.textContent = '▶';
+                alert('Could not play track. Trying next...');
+                setTimeout(() => playNext(), 500);
+            }
+        }
+        
+        function playNext() {
+            if (queue.length === 0) return;
+            playTrack((currentIndex + 1) % queue.length);
+        }
+        
+        function playPrev() {
+            if (queue.length === 0) return;
+            if (audio.currentTime > 3) {
+                audio.currentTime = 0;
+            } else {
+                playTrack((currentIndex - 1 + queue.length) % queue.length);
+            }
+        }
+        
+        // Audio Events
+        audio.addEventListener('play', () => {
+            isPlaying = true;
+            playBtn.textContent = '⏸';
+        });
+        
+        audio.addEventListener('pause', () => {
+            isPlaying = false;
+            playBtn.textContent = '▶';
+        });
+        
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const pct = (audio.currentTime / audio.duration) * 100;
+                progressFill.style.width = pct + '%';
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+                totalTimeEl.textContent = formatTime(audio.duration);
+            }
+        });
+        
+        audio.addEventListener('ended', playNext);
+        
+        audio.addEventListener('error', () => {
+            console.error('Audio error');
+            playBtn.textContent = '▶';
+        });
+        
+        // Controls
+        playBtn.addEventListener('click', () => {
+            if (audio.src) {
+                if (isPlaying) {
+                    audio.pause();
+                } else {
+                    audio.play();
+                }
+            } else if (queue.length > 0) {
+                playTrack(0);
+            }
+        });
+        
+        prevBtn.addEventListener('click', playPrev);
+        nextBtn.addEventListener('click', playNext);
+        
+        // Progress Bar Click
+        progressBar.addEventListener('click', (e) => {
+            if (audio.duration) {
+                const rect = progressBar.getBoundingClientRect();
+                const pct = (e.clientX - rect.left) / rect.width;
+                audio.currentTime = pct * audio.duration;
+            }
+        });
+        
+        // Media Session API
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.setActionHandler('play', () => audio.play());
+            navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+            navigator.mediaSession.setActionHandler('nexttrack', playNext);
+        }
+        
+        console.log('🎵 Monochrome LITE loaded');
+    })();
+    </script>
+</body>
+</html>
